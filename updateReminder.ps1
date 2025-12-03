@@ -101,6 +101,7 @@ function updateChecker {
 
     #Clear the txt file to prevent multiple entries of one software. The entire software list is stored in memory during function execution, and will be output back to the list
     Clear-Content -Path $pth
+    Clear-Content -Path "C:\temp\updateSend.txt"
     foreach ($soft in $list) {
         $sof = $soft.Software
         $link = $soft.Link
@@ -134,10 +135,8 @@ function updateChecker {
         "$link" | Out-File $pth -Append
         "$vers" | Out-File $pth -Append
         "$upd" | Out-File $pth -Append
-
-        "$list" | Out-File "C:\temp\updateSend.txt"
-
     }
+    $list | Out-File "C:\temp\updateSend.txt"
 }
 
 function debugLog {
