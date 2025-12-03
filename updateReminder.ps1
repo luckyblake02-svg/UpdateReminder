@@ -1,34 +1,40 @@
-function updateChecker {
-
-    #Set file path for list of installed software to check.
-    $pth = 'C:\temp\updateList.txt'
-    #Is the file there already
-    $tstPth = Test-Path $pth
-    #Declare empty list array
-    $list = @()
-    #If the file exists already (meaning there is probably already existing content)
-    if ($tstPth) {
-        $conv = Get-Content $pth
-        #Every 0th/3rd entry is software name
-        $i = 0
-        #Every 1st/4th entry is the site
-        $j = 1
-        #Every 2nd/5th entry is the version
-        $k = 2
-        foreach ($ln in $conv) {
-            while ($i -lt $conv.Length) {
-                #Store the contents of the txt file into a custom object for easy manipulation of data
-                $list += [PSCustomObject]@{
-                    Software = $conv[$i]
-                    Link = $conv[$j]
-                    Version = $conv[$k]
-                }
-                $i += 3
-                $j += 3
-                $k += 3
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+#Set file path for list of installed software to check.
+$pth = 'C:\temp\updateList.txt'
+#Is the file there already
+$tstPth = Test-Path $pth
+#Declare empty list array
+$list = @()
+#If the file exists already (meaning there is probably already existing content)
+if ($tstPth) {
+    $conv = Get-Content $pth
+    #Every 0th/4th entry is software name
+    $i = 0
+    #Every 1st/5th entry is the site
+    $j = 1
+    #Every 2nd/6th entry is the version
+    $k = 2
+    #Every 3rd/7th entry is the update
+    $L = 3
+    foreach ($ln in $conv) {
+        while ($i -lt $conv.Length) {
+            #Store the contents of the txt file into a custom object for easy manipulation of data
+            $list += [PSCustomObject]@{
+                Software = $conv[$i]
+                Link = $conv[$j]
+                Version = $conv[$k]
+                Update = $conv[$L]
             }
+            $i += 4
+            $j += 4
+            $k += 4
+            $L += 4
         }
     }
+}
+
+function listProcess {
+
     $cont = $false
     do {
         $add = Read-Host -Prompt "Would you like to add new software or modify existing software to the list to check?"
@@ -43,6 +49,7 @@ function updateChecker {
                 Software = $name
                 Link = $lnk
                 Version = $ver
+                Update = "No"
             }
         }
         elseif ($add -match '[Mm]odify') {
@@ -88,6 +95,9 @@ function updateChecker {
         }
 
     } while (!$cont)
+}
+
+function updateChecker {
 
     #Clear the txt file to prevent multiple entries of one software. The entire software list is stored in memory during function execution, and will be output back to the list
     Clear-Content -Path $pth
@@ -95,6 +105,7 @@ function updateChecker {
         $sof = $soft.Software
         $link = $soft.Link
         $vers = $soft.Version
+        $upd = $soft.Update
 
         #Check the website
         $ping = Invoke-WebRequest -Method Get -Uri $soft.Link
@@ -113,6 +124,7 @@ function updateChecker {
             }
             else {
                 debugLog "$sof is not up to date. The current versions is: $vers. The latest version is: $newVer. Please update!" "Yellow"
+                $upd = $newVer
             }
 
         }
@@ -121,6 +133,9 @@ function updateChecker {
         "$sof" | Out-File -FilePath $pth -Append
         "$link" | Out-File $pth -Append
         "$vers" | Out-File $pth -Append
+        "$upd" | Out-File $pth -Append
+
+        "$list" | Out-File "C:\temp\updateSend.txt"
 
     }
 }
@@ -144,4 +159,10 @@ function debugLog {
 
 }
 
-updateChecker
+if ($env:USERNAME -match "SYSTEM") {
+    updateChecker
+    Send-MailMessage -To 'email' -From 'email' -Attachments "C:\temp\updateSend.txt" -Subject "Software version list" -Body "This is the current list of installed software, their versions, and updates if applicable. Please consider updating any outdated software." -SmtpServer 'smtp'
+}
+else {
+    listProcess ; updateChecker
+}
